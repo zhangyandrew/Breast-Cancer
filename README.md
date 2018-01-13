@@ -13,4 +13,6 @@ For the purpose of learning the minute details of various Machine Learning techn
 - **Random Forest**
 - **Support Vector Machine**
 
+The variables included, but are not limited to, diagnosis, radius of the cancer cells, perimeter of the cancer cells, area of the cancer cell, radius standard error, perimeter standard error, and concavity standard error.
+
 # Conclusion
