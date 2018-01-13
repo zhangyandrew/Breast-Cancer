@@ -1,0 +1,157 @@
+# setup
+setwd("wd")
+install.packages("corrplot")
+install.packages("tree")
+install.packages("ISLR")
+install.packages("ROCR")
+install.packages("randomForest")
+install.packages("e1071")
+
+library(corrplot)
+library(caret)
+library(tree)
+library(ISLR)
+library(plyr)
+library(dplyr)
+library(class)
+library(pscl)
+library(ROCR)
+library(MASS)
+library(randomForest)
+library(e1071)
+
+# Preprocessing/Analysis
+BC <- read.csv("data.csv")
+BC$diagnosis <- as.factor(BC$diagnosis)
+BC[33] <- NULL
+BC[1] <- NULL
+
+attach(BC)
+str(BC)
+summary(BC)
+
+corr_matrix <- cor(BC[3:ncol(BC)])
+corrplot(corr_matrix, order = "hclust")
+
+# Train/Test Sets
+#Train/Test Sets
+index <- createDataPartition(diagnosis, p = 0.5, list = FALSE)
+
+train.BC <- BC[index, ]
+test.BC <- BC[-index, ]
+
+BC.train <- diagnosis[index]
+BC.test <- diagnosis[-index]
+```
+
+# PCA
+pr_BC <- prcomp(train.BC[,3:ncol(train.BC)], scale = T)
+names(pr_BC)
+plot(pr_BC, type = "l")
+
+dim(pr_BC$x)
+biplot(pr_BC, scale = 0)
+
+summary(pr_BC)
+#PC1, PC2 account for 60% of variance, PC1-10 account for 95%, rest accounts for 5%
+
+#Examine relationship between PC1, PC2 via ggplot
+
+# Decision Tree
+set.seed(2)
+
+BC.tree1 = tree(diagnosis~., data = BC, subset = index, method = "class")
+summary(BC.tree1)
+plot(BC.tree1)
+text(BC.tree1, pretty=0)
+
+coltype <- grep("diagnosis", names(BC))
+BCpred.tree <- predict(BC.tree1, test.BC[, -coltype], type = "class")
+
+table(BCpred.tree, BC.test)
+
+mean(BCpred.tree != BC.test)
+#6.3% test error rate
+
+# kNN
+set.seed(2)
+
+Xtrain <- cbind(radius_mean, texture_mean, perimeter_mean, area_mean, smoothness_mean, compactness_mean, concavity_mean, concave.points_mean, symmetry_mean, fractal_dimension_mean, radius_se, texture_se, perimeter_se, area_se, smoothness_se, compactness_se, concavity_se, concave.points_se, symmetry_se, fractal_dimension_se, radius_worst, texture_worst, perimeter_worst, area_worst, smoothness_worst, compactness_worst, concavity_worst, concave.points_worst, symmetry_worst, fractal_dimension_worst)[index, ]
+Xtest <- cbind(radius_mean, texture_mean, perimeter_mean, area_mean, smoothness_mean, compactness_mean, concavity_mean, concave.points_mean, symmetry_mean, fractal_dimension_mean, radius_se, texture_se, perimeter_se, area_se, smoothness_se, compactness_se, concavity_se, concave.points_se, symmetry_se, fractal_dimension_se, radius_worst, texture_worst, perimeter_worst, area_worst, smoothness_worst, compactness_worst, concavity_worst, concave.points_worst, symmetry_worst, fractal_dimension_worst)[-index, ]
+
+set.seed(3)
+
+BCpred.knn1 <- knn(Xtrain, Xtest, BC.train, k = 1)
+table(BCpred.knn1, BC.test)
+mean(BCpred.knn1 != BC.test)
+#10.9%
+
+BCpred.knn2 <- knn(Xtrain, Xtest, BC.train, k = 5)
+table(BCpred.knn2, BC.test)
+mean(BCpred.knn2 != BC.test)
+#8.8%
+
+BCpred.knn3 <- knn(Xtrain, Xtest, BC.train, k = 10)
+table(BCpred.knn3, BC.test)
+mean(BCpred.knn3 != BC.test)
+#9.2%
+
+BCpred.knn4 <- knn(Xtrain, Xtest, BC.train, k = 20)
+table(BCpred.knn4, BC.test)
+mean(BCpred.knn4 != BC.test)
+#10.2%
+
+BCpred.knn5 <- knn(Xtrain, Xtest, BC.train, k = 50)
+table(BCpred.knn5, BC.test)
+mean(BCpred.knn5 != BC.test)
+#10.2%
+
+BCpred.knn6 <- knn(Xtrain, Xtest, BC.train, k = 100)
+table(BCpred.knn6, BC.test)
+mean(BCpred.knn6 != BC.test)
+#11.3%
+
+# Logistic Regression
+BC.fit <- glm(diagnosis~., data = BC, family = binomial(link = "logit"))
+BCpred.fit <- predict(BC.fit, test.BC)
+
+glm_acc <- table(BCpred.fit, test.BC$diagnosis)
+mean(BCpred.fit != test.BC[,"diagnosis"])
+sum(diag(glm_acc))/sum(glm_acc)
+#0.3% test error rate
+
+
+# LDA
+BC.lda <- lda(diagnosis~., data = BC)
+BCpred.lda <- predict(BC.lda, test.BC)
+table(BCpred.lda$class, BC.test)
+
+mean(BCpred.lda$class != BC.test)
+#4.9% test error rate
+
+#ROC Plot
+pred <- prediction(BCpred.lda$posterior[,2], BC.test)
+perf <- performance(pred, "tpr", "fpr")
+plot(perf, colorize = FALSE)
+
+
+# Random Forest
+set.seed(1)
+BC.forest <- randomForest(diagnosis~., data = BC, subset = index)
+BCpred.forest <- predict(BC.forest, test.BC)
+
+table(BCpred.forest, BC.test)
+
+mean(BCpred.forest != BC.test)
+#6.3% test error rate
+
+
+# SVM
+BC.svm <- svm(diagnosis~., data = BC, kernel = "linear", cost = 10, scale = TRUE)
+BCpred.svm <- predict(BC.svm, test.BC)
+
+table(BCpred.svm, BC.test)
+
+mean(BCpred.svm != BC.test)
+#1% test error rate
+```
